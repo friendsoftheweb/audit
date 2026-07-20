@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-
-	"github.com/fatih/color"
 )
 
 type YarnIssue struct {
@@ -15,10 +13,12 @@ type YarnIssue struct {
 }
 
 type YarnIssueData struct {
+	Id                 int      `json:"id"`
 	Severity           string   `json:"severity"`
 	Issue              string   `json:"Issue"`
 	VulnerableVersions string   `json:"Vulnerable Versions"`
 	TreeVersions       []string `json:"Tree Versions"`
+	Url                string   `json:"URL"`
 }
 
 type YarnInfo struct {
@@ -45,15 +45,6 @@ func yarnAudit() ([]YarnIssue, error) {
 				}
 
 				issues = append(issues, issue)
-
-				// fmt.Println("----------------------------------------")
-				// fmt.Printf("Package: %s\n", issue.PackageName)
-				// fmt.Printf("Severity: %s\n", issue.Data.Severity)
-				// fmt.Printf("Issue: %s\n", issue.Data.Issue)
-				// fmt.Printf("Vulnerable Versions: %s\n", issue.Data.VulnerableVersions)
-				// fmt.Printf("Tree Versions: %s\n", strings.Join(issue.Data.TreeVersions, ", "))
-				// fmt.Println("----------------------------------------")
-				// fmt.Println()
 			}
 		}
 	}
@@ -114,40 +105,12 @@ func yarnInfoVersions(packageName string) ([]string, error) {
 }
 
 func yarnUpgrade(packageName string) error {
-	previousVersions, err := yarnInfoVersions(packageName)
-
-	if err != nil {
-		return err
-	}
-
 	out, err := command(fmt.Sprintf("Upgrading package %s...", packageName), []string{"yarn", "up", "--recursive", packageName})
 
 	if err != nil {
 		fmt.Printf("Error upgrading package %s: %s\n", packageName, string(out))
 
 		return err
-	}
-
-	versions, err := yarnInfoVersions(packageName)
-
-	if err != nil {
-		return err
-	}
-
-	var upgraded = false
-
-	for index, previousVersion := range previousVersions {
-		if versions[index] != previousVersion {
-			upgraded = true
-
-			break
-		}
-	}
-
-	if upgraded {
-		fmt.Printf(color.GreenString("Package %s upgraded successfully\n"), packageName)
-	} else {
-		fmt.Printf(color.YellowString("Package %s could not be upgraded\n"), packageName)
 	}
 
 	return nil

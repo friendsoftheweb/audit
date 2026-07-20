@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"slices"
+	"strings"
 	"time"
 
-	"charm.land/huh/v2"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/lipgloss/table"
 	"github.com/fatih/color"
 )
 
@@ -16,6 +17,22 @@ var MIN_NODE_VERSION = "v24.0.0"
 var MIN_RUBY_VERSION = "v3.3.0"
 
 func main() {
+	var upgradeAll = false
+
+	args := os.Args
+
+	if len(args) > 1 {
+		for _, arg := range args[1:] {
+			if arg == "--upgrade-all" || arg == "-a" {
+				upgradeAll = true
+			} else {
+				fmt.Printf(color.RedString("Unknown argument: %s\n"), arg)
+
+				os.Exit(1)
+			}
+		}
+	}
+
 	modifiedFiles := gitStatus()
 
 	// Make sure the user is aware of any modified files before proceeding
@@ -62,7 +79,7 @@ func main() {
 	branchName := fmt.Sprintf("audit-%s", date)
 
 	if gitBranchExists(branchName) {
-		fmt.Printf("\nBranch %s already exists. Checking it out...\n\n", branchName)
+		fmt.Printf("\nBranch %s already exists. Checking it out...\n", branchName)
 
 		err := exec.Command("git", "checkout", branchName).Run()
 
@@ -72,156 +89,107 @@ func main() {
 			os.Exit(1)
 		}
 	} else {
-		fmt.Printf("Creating and checking out branch %s...\n\n", branchName)
+		fmt.Printf("\nCreating and checking out branch %s...\n", branchName)
 
 		gitCreateBranch(branchName)
 	}
 
+	var nodeResults []UpgradeResult
+	var rubyResults []UpgradeResult
+
 	if nodeProject {
-		auditPackages()
+		nodeResults, _ = auditNodePackages(upgradeAll)
 	}
 
 	if rubyProject {
-		auditGems()
+		rubyResults, _ = auditRubyGems(upgradeAll)
+	}
+
+	if len(nodeResults) > 0 {
+		fmt.Println("\nRemaining Node CVEs:")
+
+		printResultsTable(nodeResults)
+	}
+
+	if len(rubyResults) > 0 {
+		fmt.Println("\nRemaining Ruby CVEs:")
+
+		printResultsTable(rubyResults)
 	}
 
 	modifiedFiles = gitStatus()
 
-	yarnLockfileModified := slices.Contains(modifiedFiles, "yarn.lock")
-	bundlerLockfileModified := slices.Contains(modifiedFiles, "Gemfile.lock")
+	nodeLockFileModified := slices.Contains(modifiedFiles, "yarn.lock")
+	nodePackageFileModified := slices.Contains(modifiedFiles, "package.json")
 
-	if !(yarnLockfileModified || bundlerLockfileModified) {
+	rubyLockFileModified := slices.Contains(modifiedFiles, "Gemfile.lock")
+
+	if !(nodeLockFileModified || rubyLockFileModified) {
 		fmt.Println("\nNo changes to commit")
+	} else {
+		fmt.Println()
 
-		return
-	}
-
-	fmt.Println("")
-
-	if confirm("Commit and push changes?", true) {
-		if yarnLockfileModified {
-			gitAdd([]string{"yarn.lock"})
-		}
-
-		if bundlerLockfileModified {
-			gitAdd([]string{"Gemfile.lock"})
-		}
-
-		gitCommit("Upgrade packages with CVEs")
-
-		gitPush(branchName)
-	}
-
-	fmt.Println("\n\nAll done!")
-}
-
-func auditPackages() {
-	issues, err := yarnAudit()
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if len(issues) == 0 {
-		fmt.Println("No packages with CVEs found")
-		return
-	}
-
-	// fmt.Printf("Found %d packages with CVEs", len(issues))
-
-	var options = make([]huh.Option[string], 0)
-
-	for _, issue := range issues {
-		var found *YarnIssue
-
-		for _, option := range options {
-			if option.Value == issue.PackageName {
-				found = &issue
-				break
+		if confirm("Commit and push changes?", true) {
+			if nodeLockFileModified {
+				gitAdd([]string{"yarn.lock"})
 			}
-		}
 
-		if found == nil {
-			options = append(options, huh.NewOption(issue.PackageName, issue.PackageName).Selected(true))
+			if nodePackageFileModified {
+				gitAdd([]string{"package.json"})
+			}
+
+			if rubyLockFileModified {
+				gitAdd([]string{"Gemfile.lock"})
+			}
+
+			gitCommit("Upgrade packages with CVEs")
+
+			gitPush(branchName)
 		}
 	}
+}
 
-	var selectedPackages []string
-
-	err = huh.NewMultiSelect[string]().
-		Options(
-			options...,
-		).
-		Title("Select packages to upgrade").
-		Value(&selectedPackages).Run()
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if len(selectedPackages) == 0 {
-		fmt.Println("No packages selected. Aborting...")
-
+func printResultsTable(results []UpgradeResult) {
+	if len(results) == 0 {
 		return
 	}
 
-	for _, packageName := range selectedPackages {
-		err := yarnUpgrade(packageName)
+	showPatchedVersions := len(results[0].PatchedVersions) > 0
 
-		if err != nil {
-			log.Printf("Error upgrading package %s: %s\n", packageName, err)
+	var headers []string
+
+	if showPatchedVersions {
+		headers = []string{"Package", "Patched", "Installed", "URL"}
+	} else {
+		headers = []string{"Package", "Vulnerable", "Installed", "URL"}
+	}
+
+	rows := make([][]string, len(results))
+
+	for i, result := range results {
+		if showPatchedVersions {
+			rows[i] = []string{result.PackageName, strings.Join(result.PatchedVersions, ", "), strings.Join(result.Versions, ", "), result.Url}
+		} else {
+			rows[i] = []string{result.PackageName, strings.Join(result.VulnerableVersions, ", "), strings.Join(result.Versions, ", "), result.Url}
 		}
 	}
 
-	fmt.Println()
-}
+	purple := lipgloss.Color("99")
+	gray := lipgloss.Color("245")
 
-func auditGems() {
-	issues, err := bundlerAuditCheck()
+	cellStyle := lipgloss.NewStyle().Padding(0, 1)
+	headerStyle := cellStyle.Foreground(purple).Bold(true)
 
-	if err != nil {
-		log.Fatal(err)
-	}
+	t := table.New().
+		Headers(headers...).
+		Rows(rows...).
+		StyleFunc(func(row, col int) lipgloss.Style {
+			if row == -1 {
+				return headerStyle
+			}
 
-	// if len(issues) > 0 {
-	// 	for _, issue := range issues {
-	// 		fmt.Println("----------------------------------------")
-	// 		fmt.Printf("Gem: %s\n", issue.Gem.Name)
-	// 		fmt.Printf("Version: %s\n", issue.Gem.Version)
-	// 		fmt.Printf("Advisory: %s\n", issue.Advisory.Title)
-	// 		fmt.Println("----------------------------------------")
-	// 		fmt.Println()
-	// 	}
-	// }
+			return cellStyle.Foreground(gray)
+		})
 
-	var gemNames []string
-
-	for _, issue := range issues {
-		gemNames = append(gemNames, issue.Gem.Name)
-	}
-
-	gemNames = unique(gemNames)
-
-	if len(gemNames) > 0 {
-		var options = make([]huh.Option[string], 0)
-
-		for _, gemName := range gemNames {
-			options = append(options, huh.NewOption(gemName, gemName).Selected(true))
-		}
-
-		var selectedGems []string
-
-		err = huh.NewMultiSelect[string]().
-			Options(
-				options...,
-			).
-			Title("Select gems to upgrade").
-			Value(&selectedGems).Run()
-
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		command("Upgrading gems...", append([]string{"bundle", "update"}, selectedGems...))
-	}
+	fmt.Println(t)
 }

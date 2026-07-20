@@ -22,7 +22,10 @@ type BundlerIssueGem struct {
 }
 
 type BundlerIssueAdvisory struct {
-	Title string `json:"title"`
+	Cve             string   `json:"cve"`
+	Title           string   `json:"title"`
+	Url             string   `json:"url"`
+	PatchedVersions []string `json:"patched_versions"`
 }
 
 func bundlerAuditCheck() ([]BundlerIssue, error) {
