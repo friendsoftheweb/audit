@@ -25,14 +25,19 @@ func gitStatus() []string {
 	return modifiedFiles
 }
 
-func gitCurrentBranch() string {
-	out, err := exec.Command("git", "rev-parse", "--abrev-ref", "HEAD").Output()
+func gitCurrentBranch() (string, error) {
+	cmd := exec.Command("git", "symbolic-ref", "--quiet", "--short", "HEAD")
+	out, err := cmd.CombinedOutput()
 
 	if err != nil {
-		log.Fatal(err)
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() != 0 {
+			return "", nil // Detached HEAD state
+		}
+
+		return "", err
 	}
 
-	return strings.TrimSpace(string(out))
+	return strings.TrimSpace(string(out)), nil
 }
 
 func gitBranchExists(name string) bool {

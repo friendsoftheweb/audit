@@ -33,6 +33,23 @@ func main() {
 		}
 	}
 
+	currentDate := time.Now().Format("2006-01-02")
+	auditBranchName := fmt.Sprintf("audit-%s", currentDate)
+
+	currentBranch, err := gitCurrentBranch()
+
+	if err != nil {
+		fmt.Print(color.RedString(err.Error()))
+
+		os.Exit(1)
+	}
+
+	if !(currentBranch == "main" || currentBranch == "master" || currentBranch == auditBranchName) {
+		fmt.Println(color.RedString("Please switch to the main branch and try again."))
+
+		os.Exit(1)
+	}
+
 	modifiedFiles := gitStatus()
 
 	// Make sure the user is aware of any modified files before proceeding
@@ -75,13 +92,10 @@ func main() {
 		}
 	}
 
-	date := time.Now().Format("2006-01-02")
-	branchName := fmt.Sprintf("audit-%s", date)
+	if gitBranchExists(auditBranchName) {
+		fmt.Printf("\nBranch %s already exists. Checking it out...\n", auditBranchName)
 
-	if gitBranchExists(branchName) {
-		fmt.Printf("\nBranch %s already exists. Checking it out...\n", branchName)
-
-		err := exec.Command("git", "checkout", branchName).Run()
+		err := exec.Command("git", "checkout", auditBranchName).Run()
 
 		if err != nil {
 			fmt.Print(color.RedString(err.Error()))
@@ -89,9 +103,9 @@ func main() {
 			os.Exit(1)
 		}
 	} else {
-		fmt.Printf("\nCreating and checking out branch %s...\n", branchName)
+		fmt.Printf("\nCreating and checking out branch %s...\n", auditBranchName)
 
-		gitCreateBranch(branchName)
+		gitCreateBranch(auditBranchName)
 	}
 
 	var nodeResults []UpgradeResult
@@ -144,7 +158,7 @@ func main() {
 
 			gitCommit("Upgrade packages with CVEs")
 
-			gitPush(branchName)
+			gitPush(auditBranchName)
 		}
 	}
 }
