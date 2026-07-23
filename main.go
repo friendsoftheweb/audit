@@ -18,6 +18,7 @@ var MIN_RUBY_VERSION = "v3.3.0"
 
 func main() {
 	var upgradeAll = false
+	var ignoreVersion = false
 
 	args := os.Args
 
@@ -25,6 +26,8 @@ func main() {
 		for _, arg := range args[1:] {
 			if arg == "--upgrade-all" || arg == "-a" {
 				upgradeAll = true
+			} else if arg == "--ignore-version" || arg == "-i" {
+				ignoreVersion = true
 			} else if arg == "--help" || arg == "-h" {
 				printUsage()
 
@@ -80,9 +83,13 @@ func main() {
 		err := checkNodeVersion(MIN_NODE_VERSION)
 
 		if err != nil {
-			fmt.Print(color.RedString(err.Error()))
+			if ignoreVersion {
+				fmt.Print(color.YellowString(err.Error()))
+			} else {
+				fmt.Print(color.RedString(err.Error()))
 
-			os.Exit(1)
+				os.Exit(1)
+			}
 		}
 	}
 
@@ -90,9 +97,13 @@ func main() {
 		err := checkRubyVersion(MIN_RUBY_VERSION)
 
 		if err != nil {
-			fmt.Print(color.RedString(err.Error()))
+			if ignoreVersion {
+				fmt.Print(color.YellowString(err.Error()))
+			} else {
+				fmt.Print(color.RedString(err.Error()))
 
-			os.Exit(1)
+				os.Exit(1)
+			}
 		}
 	}
 
@@ -174,8 +185,9 @@ func printUsage() {
 	fmt.Println("packages, and commits the changes to a new audit branch.")
 	fmt.Println()
 	fmt.Println("Options:")
-	fmt.Println("  -a, --upgrade-all   Upgrade all packages with CVEs without prompting for selection")
-	fmt.Println("  -h, --help          Show this help message")
+	fmt.Println("  -a, --upgrade-all    Upgrade all packages with CVEs without prompting for selection")
+	fmt.Println("  -i, --ignore-version Warn instead of exiting if the Node or Ruby version is below the minimum")
+	fmt.Println("  -h, --help           Show this help message")
 }
 
 func printResultsTable(results []UpgradeResult) {
