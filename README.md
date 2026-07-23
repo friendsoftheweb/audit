@@ -24,6 +24,13 @@ export PATH="$(go env GOPATH)/bin:$PATH"
 audit
 ```
 
+If you want to upgrade all vulnerable packages without the option to deselect
+some of them, you can run:
+
+```bash
+audit -a
+```
+
 ## Building
 
 ```bash

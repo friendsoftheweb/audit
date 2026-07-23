@@ -25,6 +25,10 @@ func main() {
 		for _, arg := range args[1:] {
 			if arg == "--upgrade-all" || arg == "-a" {
 				upgradeAll = true
+			} else if arg == "--help" || arg == "-h" {
+				printUsage()
+
+				os.Exit(0)
 			} else {
 				fmt.Printf(color.RedString("Unknown argument: %s\n"), arg)
 
@@ -161,6 +165,17 @@ func main() {
 			gitPush(auditBranchName)
 		}
 	}
+}
+
+func printUsage() {
+	fmt.Println("Usage: audit [options]")
+	fmt.Println()
+	fmt.Println("Checks Node and Ruby dependencies for known CVEs, upgrades vulnerable")
+	fmt.Println("packages, and commits the changes to a new audit branch.")
+	fmt.Println()
+	fmt.Println("Options:")
+	fmt.Println("  -a, --upgrade-all   Upgrade all packages with CVEs without prompting for selection")
+	fmt.Println("  -h, --help          Show this help message")
 }
 
 func printResultsTable(results []UpgradeResult) {
