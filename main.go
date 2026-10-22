@@ -57,6 +57,31 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Make sure the audit branch is created from an up-to-date main branch
+	if currentBranch == "main" || currentBranch == "master" {
+		if upstream := gitUpstreamBranch(); upstream != "" {
+			if err := gitFetch(); err != nil {
+				fmt.Println(color.RedString("Failed to fetch from remote: %s", err))
+
+				os.Exit(1)
+			}
+
+			behind, err := gitCommitsBehind(upstream)
+
+			if err != nil {
+				fmt.Println(color.RedString(err.Error()))
+
+				os.Exit(1)
+			}
+
+			if behind > 0 {
+				fmt.Println(color.RedString("Branch %s is %d commit(s) behind %s. Please pull and try again.", currentBranch, behind, upstream))
+
+				os.Exit(1)
+			}
+		}
+	}
+
 	modifiedFiles := gitStatus()
 
 	// Make sure the user is aware of any modified files before proceeding

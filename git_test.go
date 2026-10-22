@@ -92,3 +92,54 @@ func runGit(t *testing.T, dir string, args ...string) {
 		t.Fatalf("git %s failed: %v\n%s", args, err, out)
 	}
 }
+
+func TestGitCommitsBehindCountsUnpulledCommits(t *testing.T) {
+	root := t.TempDir()
+	remote := filepath.Join(root, "remote.git")
+	local := filepath.Join(root, "local")
+	other := filepath.Join(root, "other")
+
+	runGit(t, root, "init", "--bare", "--initial-branch=main", remote)
+	runGit(t, root, "clone", remote, local)
+	runGit(t, local, "config", "user.name", "Test User")
+	runGit(t, local, "config", "user.email", "test@example.com")
+	runGit(t, local, "checkout", "-b", "main")
+	runGit(t, local, "commit", "--allow-empty", "-m", "initial")
+	runGit(t, local, "push", "--set-upstream", "origin", "main")
+
+	runGit(t, root, "clone", remote, other)
+	runGit(t, other, "config", "user.name", "Test User")
+	runGit(t, other, "config", "user.email", "test@example.com")
+	runGit(t, other, "commit", "--allow-empty", "-m", "second")
+	runGit(t, other, "commit", "--allow-empty", "-m", "third")
+	runGit(t, other, "push")
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(cwd); err != nil {
+			t.Fatalf("restore cwd: %v", err)
+		}
+	}()
+
+	if err := os.Chdir(local); err != nil {
+		t.Fatalf("chdir to repo: %v", err)
+	}
+
+	upstream := gitUpstreamBranch()
+	if upstream != "origin/main" {
+		t.Fatalf("gitUpstreamBranch() = %q, want %q", upstream, "origin/main")
+	}
+
+	runGit(t, local, "fetch")
+
+	got, err := gitCommitsBehind(upstream)
+	if err != nil {
+		t.Fatalf("gitCommitsBehind() returned error: %v", err)
+	}
+	if got != 2 {
+		t.Fatalf("gitCommitsBehind() = %d, want 2", got)
+	}
+}

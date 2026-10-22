@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -38,6 +39,35 @@ func gitCurrentBranch() (string, error) {
 	}
 
 	return strings.TrimSpace(string(out)), nil
+}
+
+// gitUpstreamBranch returns the upstream of the current branch (e.g.
+// "origin/main"), or an empty string if the branch has no upstream.
+func gitUpstreamBranch() string {
+	out, err := exec.Command("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}").Output()
+
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(out))
+}
+
+func gitFetch() error {
+	_, err := command("Fetching from remote...", []string{"git", "fetch", "--quiet"})
+
+	return err
+}
+
+// gitCommitsBehind returns the number of commits on upstream that aren't in HEAD.
+func gitCommitsBehind(upstream string) (int, error) {
+	out, err := exec.Command("git", "rev-list", "--count", "HEAD.."+upstream).Output()
+
+	if err != nil {
+		return 0, err
+	}
+
+	return strconv.Atoi(strings.TrimSpace(string(out)))
 }
 
 func gitBranchExists(name string) bool {
