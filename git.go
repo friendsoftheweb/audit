@@ -88,6 +88,36 @@ func gitBranchExists(name string) bool {
 	return strings.TrimSpace(string(out)) != ""
 }
 
+// gitListBranches returns the names of local branches matching a glob pattern.
+func gitListBranches(pattern string) []string {
+	out, err := exec.Command("git", "branch", "--list", pattern, "--format=%(refname:short)").Output()
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var branches []string
+
+	for _, line := range strings.Split(string(out), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			branches = append(branches, line)
+		}
+	}
+
+	return branches
+}
+
+// gitDeleteBranch force-deletes a local branch, even if it hasn't been merged.
+func gitDeleteBranch(name string) error {
+	out, err := exec.Command("git", "branch", "-D", name).CombinedOutput()
+
+	if err != nil {
+		return fmt.Errorf("%s", strings.TrimSpace(string(out)))
+	}
+
+	return nil
+}
+
 func gitCreateBranch(name string) {
 	err := exec.Command("git", "checkout", "-b", name).Run()
 

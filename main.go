@@ -214,6 +214,44 @@ func main() {
 			gitPush(auditBranchName)
 		}
 	}
+
+	cleanUpOldAuditBranches(auditBranchName)
+}
+
+// cleanUpOldAuditBranches offers to delete any local audit branches other than
+// the current one.
+func cleanUpOldAuditBranches(currentAuditBranchName string) {
+	var oldBranches []string
+
+	for _, branch := range gitListBranches("audit-*") {
+		if branch != currentAuditBranchName {
+			oldBranches = append(oldBranches, branch)
+		}
+	}
+
+	if len(oldBranches) == 0 {
+		return
+	}
+
+	fmt.Println("\nYou have other local audit branches:")
+
+	for _, branch := range oldBranches {
+		fmt.Printf("- %s\n", branch)
+	}
+
+	fmt.Println()
+
+	if !confirm("Delete these branches?", false) {
+		return
+	}
+
+	for _, branch := range oldBranches {
+		if err := gitDeleteBranch(branch); err != nil {
+			fmt.Println(color.RedString("Failed to delete %s: %s", branch, err))
+		} else {
+			fmt.Printf("Deleted %s\n", branch)
+		}
+	}
 }
 
 func printUsage() {

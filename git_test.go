@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -168,4 +169,32 @@ func setupRepoBehindRemote(t *testing.T) string {
 	}
 
 	return local
+}
+
+func TestGitListAndDeleteBranches(t *testing.T) {
+	local := setupRepoBehindRemote(t)
+
+	runGit(t, local, "branch", "audit-2026-01-01")
+	runGit(t, local, "branch", "audit-2026-02-01")
+	runGit(t, local, "branch", "feature")
+
+	got := gitListBranches("audit-*")
+	want := []string{"audit-2026-01-01", "audit-2026-02-01"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("gitListBranches() = %q, want %q", got, want)
+	}
+
+	if err := gitDeleteBranch("audit-2026-01-01"); err != nil {
+		t.Fatalf("gitDeleteBranch() returned error: %v", err)
+	}
+
+	got = gitListBranches("audit-*")
+	want = []string{"audit-2026-02-01"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("gitListBranches() after delete = %q, want %q", got, want)
+	}
+
+	if err := gitDeleteBranch("audit-does-not-exist"); err == nil {
+		t.Fatalf("gitDeleteBranch() on missing branch returned nil error")
+	}
 }
