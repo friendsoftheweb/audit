@@ -59,6 +59,14 @@ func gitFetch() error {
 	return err
 }
 
+// gitPull fast-forwards the current branch to its upstream. It never creates a
+// merge commit, so it fails if the branch has diverged from the upstream.
+func gitPull() error {
+	_, err := command("Pulling from remote...", []string{"git", "pull", "--ff-only", "--quiet"})
+
+	return err
+}
+
 // gitCommitsBehind returns the number of commits on upstream that aren't in HEAD.
 func gitCommitsBehind(upstream string) (int, error) {
 	out, err := exec.Command("git", "rev-list", "--count", "HEAD.."+upstream).Output()

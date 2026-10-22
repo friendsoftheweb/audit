@@ -19,6 +19,7 @@ var MIN_RUBY_VERSION = "v3.3.0"
 func main() {
 	var upgradeAll = false
 	var ignoreVersion = false
+	var pull = false
 
 	args := os.Args
 
@@ -28,6 +29,8 @@ func main() {
 				upgradeAll = true
 			} else if arg == "--ignore-version" || arg == "-i" {
 				ignoreVersion = true
+			} else if arg == "--pull" || arg == "-p" {
+				pull = true
 			} else if arg == "--help" || arg == "-h" {
 				printUsage()
 
@@ -75,9 +78,19 @@ func main() {
 			}
 
 			if behind > 0 {
-				fmt.Println(color.RedString("Branch %s is %d commit(s) behind %s. Please pull and try again.", currentBranch, behind, upstream))
+				if !pull {
+					fmt.Println(color.RedString("Branch %s is %d commit(s) behind %s. Please pull (or use --pull) and try again.", currentBranch, behind, upstream))
 
-				os.Exit(1)
+					os.Exit(1)
+				}
+
+				fmt.Printf("Branch %s is %d commit(s) behind %s. Pulling...\n", currentBranch, behind, upstream)
+
+				if err := gitPull(); err != nil {
+					fmt.Println(color.RedString("Failed to pull from remote: %s", err))
+
+					os.Exit(1)
+				}
 			}
 		}
 	}
@@ -212,6 +225,7 @@ func printUsage() {
 	fmt.Println("Options:")
 	fmt.Println("  -a, --upgrade-all    Upgrade all packages with CVEs without prompting for selection")
 	fmt.Println("  -i, --ignore-version Warn instead of exiting if the Node or Ruby version is below the minimum")
+	fmt.Println("  -p, --pull           Pull from the remote if the main branch is behind it")
 	fmt.Println("  -h, --help           Show this help message")
 }
 

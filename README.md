@@ -31,6 +31,13 @@ some of them, you can run:
 audit -a
 ```
 
+`audit` exits if your main branch is behind the remote. To pull the latest
+changes automatically instead, run:
+
+```bash
+audit -p
+```
+
 ## Building
 
 ```bash

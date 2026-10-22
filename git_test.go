@@ -94,6 +94,45 @@ func runGit(t *testing.T, dir string, args ...string) {
 }
 
 func TestGitCommitsBehindCountsUnpulledCommits(t *testing.T) {
+	local := setupRepoBehindRemote(t)
+
+	upstream := gitUpstreamBranch()
+	if upstream != "origin/main" {
+		t.Fatalf("gitUpstreamBranch() = %q, want %q", upstream, "origin/main")
+	}
+
+	runGit(t, local, "fetch")
+
+	got, err := gitCommitsBehind(upstream)
+	if err != nil {
+		t.Fatalf("gitCommitsBehind() returned error: %v", err)
+	}
+	if got != 2 {
+		t.Fatalf("gitCommitsBehind() = %d, want 2", got)
+	}
+}
+
+func TestGitPullFastForwardsToUpstream(t *testing.T) {
+	setupRepoBehindRemote(t)
+
+	if err := gitPull(); err != nil {
+		t.Fatalf("gitPull() returned error: %v", err)
+	}
+
+	got, err := gitCommitsBehind("origin/main")
+	if err != nil {
+		t.Fatalf("gitCommitsBehind() returned error: %v", err)
+	}
+	if got != 0 {
+		t.Fatalf("gitCommitsBehind() = %d after pull, want 0", got)
+	}
+}
+
+// setupRepoBehindRemote creates a clone whose main branch is two commits behind
+// its remote, changes into it for the duration of the test, and returns its path.
+func setupRepoBehindRemote(t *testing.T) string {
+	t.Helper()
+
 	root := t.TempDir()
 	remote := filepath.Join(root, "remote.git")
 	local := filepath.Join(root, "local")
@@ -118,28 +157,15 @@ func TestGitCommitsBehindCountsUnpulledCommits(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getwd: %v", err)
 	}
-	defer func() {
+	t.Cleanup(func() {
 		if err := os.Chdir(cwd); err != nil {
 			t.Fatalf("restore cwd: %v", err)
 		}
-	}()
+	})
 
 	if err := os.Chdir(local); err != nil {
 		t.Fatalf("chdir to repo: %v", err)
 	}
 
-	upstream := gitUpstreamBranch()
-	if upstream != "origin/main" {
-		t.Fatalf("gitUpstreamBranch() = %q, want %q", upstream, "origin/main")
-	}
-
-	runGit(t, local, "fetch")
-
-	got, err := gitCommitsBehind(upstream)
-	if err != nil {
-		t.Fatalf("gitCommitsBehind() returned error: %v", err)
-	}
-	if got != 2 {
-		t.Fatalf("gitCommitsBehind() = %d, want 2", got)
-	}
+	return local
 }
