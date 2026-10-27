@@ -233,7 +233,7 @@ func cleanUpOldAuditBranches(currentAuditBranchName string) {
 		return
 	}
 
-	fmt.Println("\nYou have other local audit branches:")
+	fmt.Println("\n\nYou have other local audit branches:")
 
 	for _, branch := range oldBranches {
 		fmt.Printf("- %s\n", branch)
@@ -241,7 +241,7 @@ func cleanUpOldAuditBranches(currentAuditBranchName string) {
 
 	fmt.Println()
 
-	if !confirm("Delete these branches?", false) {
+	if !confirm("Delete these branches?", true) {
 		return
 	}
 
