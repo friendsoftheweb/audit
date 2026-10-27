@@ -212,10 +212,42 @@ func main() {
 			gitCommit("Upgrade packages with CVEs")
 
 			gitPush(auditBranchName)
+
+			offerToCreatePullRequest(auditBranchName)
 		}
 	}
 
 	cleanUpOldAuditBranches(auditBranchName)
+}
+
+// offerToCreatePullRequest offers to open a pull request for the audit branch
+// if the GitHub CLI is installed and the branch doesn't already have one.
+func offerToCreatePullRequest(auditBranchName string) {
+	if !ghInstalled() {
+		return
+	}
+
+	if url := ghOpenPullRequestUrl(auditBranchName); url != "" {
+		fmt.Printf("\n\nPull request already open: %s\n", url)
+
+		return
+	}
+
+	fmt.Print("\n\n")
+
+	if !confirm("Create a pull request?", true) {
+		return
+	}
+
+	url, err := ghCreatePullRequest(auditBranchName)
+
+	if err != nil {
+		fmt.Println(color.RedString("Failed to create pull request: %s", err))
+
+		return
+	}
+
+	fmt.Printf("Pull request created: %s\n", url)
 }
 
 // cleanUpOldAuditBranches offers to delete any local audit branches other than

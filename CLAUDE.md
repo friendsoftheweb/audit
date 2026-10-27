@@ -20,12 +20,13 @@ go test -run TestGitCurrentBranchReturnsCurrentBranch ./...  # run a single test
 
 Single `main` package, files split by responsibility:
 
-- `main.go` — entry point. Parses flags, enforces the git preconditions (must be on `main`/`master`/the audit branch, warns about dirty working tree), checks Node/Ruby version minimums, creates/checks out the `audit-YYYY-MM-DD` branch, runs the Node and/or Ruby audit flows, prints a results table, and offers to commit + push lockfile changes.
+- `main.go` — entry point. Parses flags, enforces the git preconditions (must be on `main`/`master`/the audit branch, warns about dirty working tree), checks Node/Ruby version minimums, creates/checks out the `audit-YYYY-MM-DD` branch, runs the Node and/or Ruby audit flows, prints a results table, and offers to commit + push lockfile changes, then (if `gh` is installed) offers to open a PR.
 - `audit.go` — orchestration layer (`auditNodePackages`, `auditRubyGems`): runs an audit, prompts the user (via `huh` multi-select) to choose which packages/gems to upgrade unless `--upgrade-all` is set, performs upgrades, re-audits, and returns `[]UpgradeResult` for display.
 - `yarn.go` — shells out to `yarn npm audit --json` and `yarn up`/`yarn info`; parses yarn's line-delimited JSON output into `YarnIssue`/`YarnInfo`.
 - `bundler.go` — shells out to `bundle exec bundle-audit check --format=json`; note it tolerates exit code 1 (means vulnerabilities found, not a tool failure) and strips any leading non-JSON text from the output before parsing.
 - `node.go` / `ruby.go` — version checks against `MIN_NODE_VERSION`/`MIN_RUBY_VERSION` (declared in `main.go`) using `golang.org/x/mod/semver`.
 - `git.go` — thin wrappers around `git` subcommands (status, branch, add, commit, push) used by `main.go`.
+- `gh.go` — wrappers around the GitHub CLI (`gh pr view`/`gh pr create`) used to offer a PR for the audit branch after pushing.
 - `command.go` — shared helper that runs an external command while showing a `huh/spinner` progress indicator.
 - `utils.go` — small helpers (`confirm` prompt, `fileExists`, `unique`).
 
@@ -35,5 +36,5 @@ Interactive prompts (multi-select, confirm) are built with `charm.land/huh/v2`; 
 
 ## Notes
 
-- External tool dependencies at runtime: `git`, `node`, `yarn` (for Node projects), `ruby`, `bundle`/`bundle-audit` (for Ruby projects). These aren't Go dependencies — they must be present on PATH when running `audit`.
+- External tool dependencies at runtime: `git`, `node`, `yarn` (for Node projects), `ruby`, `bundle`/`bundle-audit` (for Ruby projects), and optionally `gh` (for the PR offer). These aren't Go dependencies — they must be present on PATH when running `audit`.
 - Go module path is `github.com/friendsoftheweb/audit`; installed via `go install github.com/friendsoftheweb/audit@latest`.
