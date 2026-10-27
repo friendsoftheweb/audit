@@ -24,6 +24,7 @@ type BundlerIssueGem struct {
 type BundlerIssueAdvisory struct {
 	Cve             string   `json:"cve"`
 	Title           string   `json:"title"`
+	Criticality     string   `json:"criticality"`
 	Url             string   `json:"url"`
 	PatchedVersions []string `json:"patched_versions"`
 }

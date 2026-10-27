@@ -11,6 +11,7 @@ import (
 type UpgradeResult struct {
 	Id                 string
 	PackageName        string
+	Severity           string
 	Versions           []string
 	VulnerableVersions []string
 	PatchedVersions    []string
@@ -90,6 +91,7 @@ func auditNodePackages(upgradeAll bool) ([]UpgradeResult, error) {
 		results = append(results, UpgradeResult{
 			Id:                 strconv.Itoa(issue.Data.Id),
 			PackageName:        issue.PackageName,
+			Severity:           issue.Data.Severity,
 			VulnerableVersions: []string{issue.Data.VulnerableVersions},
 			Versions:           issue.Data.TreeVersions,
 			Url:                issue.Data.Url,
@@ -152,6 +154,7 @@ func auditRubyGems(upgradeAll bool) ([]UpgradeResult, error) {
 	for _, issue := range issuesAfter {
 		results = append(results, UpgradeResult{
 			PackageName:     issue.Gem.Name,
+			Severity:        issue.Advisory.Criticality,
 			Versions:        []string{issue.Gem.Version},
 			PatchedVersions: issue.Advisory.PatchedVersions,
 			Url:             issue.Advisory.Url,

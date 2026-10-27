@@ -267,6 +267,14 @@ func printUsage() {
 	fmt.Println("  -h, --help           Show this help message")
 }
 
+var severityColors = map[string]lipgloss.Color{
+	"critical": lipgloss.Color("196"), // red
+	"high":     lipgloss.Color("208"), // orange
+	"moderate": lipgloss.Color("220"), // yellow
+	"medium":   lipgloss.Color("220"), // yellow
+	"low":      lipgloss.Color("39"),  // blue
+}
+
 func printResultsTable(results []UpgradeResult) {
 	if len(results) == 0 {
 		return
@@ -277,18 +285,18 @@ func printResultsTable(results []UpgradeResult) {
 	var headers []string
 
 	if showPatchedVersions {
-		headers = []string{"Package", "Patched", "Installed", "URL"}
+		headers = []string{"Package", "Severity", "Patched", "Installed", "URL"}
 	} else {
-		headers = []string{"Package", "Vulnerable", "Installed", "URL"}
+		headers = []string{"Package", "Severity", "Vulnerable", "Installed", "URL"}
 	}
 
 	rows := make([][]string, len(results))
 
 	for i, result := range results {
 		if showPatchedVersions {
-			rows[i] = []string{result.PackageName, strings.Join(result.PatchedVersions, ", "), strings.Join(result.Versions, ", "), result.Url}
+			rows[i] = []string{result.PackageName, result.Severity, strings.Join(result.PatchedVersions, ", "), strings.Join(result.Versions, ", "), result.Url}
 		} else {
-			rows[i] = []string{result.PackageName, strings.Join(result.VulnerableVersions, ", "), strings.Join(result.Versions, ", "), result.Url}
+			rows[i] = []string{result.PackageName, result.Severity, strings.Join(result.VulnerableVersions, ", "), strings.Join(result.Versions, ", "), result.Url}
 		}
 	}
 
@@ -304,6 +312,12 @@ func printResultsTable(results []UpgradeResult) {
 		StyleFunc(func(row, col int) lipgloss.Style {
 			if row == -1 {
 				return headerStyle
+			}
+
+			if col == 1 {
+				if severityColor, ok := severityColors[strings.ToLower(rows[row][col])]; ok {
+					return cellStyle.Foreground(severityColor).Bold(true)
+				}
 			}
 
 			return cellStyle.Foreground(gray)
